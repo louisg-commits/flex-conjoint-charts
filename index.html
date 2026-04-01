@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flex Card Pricing & Packaging — Conjoint Results</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f7; color: #1d1d1f; }
+    .header { background: #1d1d1f; color: white; padding: 2rem; text-align: center; }
+    .header h1 { font-size: 1.6rem; font-weight: 600; }
+    .header p { font-size: 0.9rem; opacity: 0.7; margin-top: 0.3rem; }
+    .container { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
+    .card { background: white; border-radius: 12px; margin-bottom: 1.5rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .card h2 { padding: 1rem 1.5rem 0.5rem; font-size: 1.1rem; color: #1d1d1f; }
+    .card p { padding: 0 1.5rem 0.5rem; font-size: 0.85rem; color: #86868b; }
+    .card iframe { width: 100%; border: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Flex Card Pricing & Packaging — Conjoint Analysis</h1>
+    <p>April 2026 · n = 664 (clean) · CBC with 6 attributes, 9 tasks</p>
+  </div>
+  <div class="container">
+    <div class="card">
+      <h2>1. Relative Attribute Importance</h2>
+      <p>Which features matter most when choosing a plan?</p>
+      <iframe src="01_attribute_importance.html" height="380"></iframe>
+    </div>
+    <div class="card">
+      <h2>2. Attribute Importance by Segment</h2>
+      <p>How importance shifts across archetypes.</p>
+      <iframe src="02_importance_by_segment.html" height="480"></iframe>
+    </div>
+    <div class="card">
+      <h2>3. Part-Worth Utilities</h2>
+      <p>Utility of each feature level with 95% confidence intervals.</p>
+      <iframe src="03_utilities.html" height="730"></iframe>
+    </div>
+    <div class="card">
+      <h2>4. Price Sensitivity</h2>
+      <p>How utility declines with price. Current tier price points marked.</p>
+      <iframe src="04_price_sensitivity.html" height="430"></iframe>
+    </div>
+    <div class="card">
+      <h2>5. Tier Simulation Comparison</h2>
+      <p>Share-of-preference across 6 scenarios (overall).</p>
+      <iframe src="05_simulation_comparison.html" height="530"></iframe>
+    </div>
+    <div class="card">
+      <h2>6. Cannibalization Analysis: 3-Tier vs 4-Tier</h2>
+      <p>Where does the Ultimate tier draw from? By segment.</p>
+      <iframe src="06_cannibalization_by_segment.html" height="480"></iframe>
+    </div>
+    <div class="card">
+      <h2>7. Self-Reported Importance (Q10.1)</h2>
+      <p>What respondents said mattered most — compare with derived importance.</p>
+      <iframe src="07_self_reported_importance.html" height="380"></iframe>
+    </div>
+    <div class="card">
+      <h2>8. Post-Conjoint Tier Exercise (Q11)</h2>
+      <p>Direct tier consideration and sign-up intent.</p>
+      <iframe src="08_q11_tier_exercise.html" height="430"></iframe>
+    </div>
+  </div>
+</body>
+</html>
