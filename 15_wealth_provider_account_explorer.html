@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wealth Provider Account Explorer</title>
+  <style>
+    :root {
+      --bg: #f8f6f1;
+      --surface: #ffffff;
+      --ink: #47201c;
+      --muted: #765f56;
+      --line: #d6c8ba;
+      --green: #99e866;
+      --yellow: #fff5a3;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); }
+    main { max-width: 1240px; margin: 24px auto; padding: 0 20px 36px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 1px 0 rgba(71, 32, 28, 0.04);
+    }
+    h1 { margin: 0 0 8px; font-size: 32px; line-height: 1.1; }
+    p { margin: 0; color: var(--muted); line-height: 1.45; }
+    .controls { display: flex; gap: 16px; flex-wrap: wrap; align-items: end; margin: 24px 0; }
+    label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+    select, input { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: white; color: var(--ink); font: inherit; }
+    svg { width: 100%; height: auto; overflow: visible; }
+    .note { margin-top: 18px; font-size: 12px; color: var(--muted); }
+    .axis-label { font-size: 12px; font-weight: 700; fill: var(--muted); }
+    .provider-label { font-size: 12px; font-weight: 700; fill: var(--ink); }
+    .bubble-label { font-size: 11px; font-weight: 800; fill: var(--ink); pointer-events: none; }
+    .tooltip {
+      position: fixed;
+      display: none;
+      max-width: 300px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+      box-shadow: 0 12px 32px rgba(71, 32, 28, 0.16);
+      font-size: 12px;
+      line-height: 1.45;
+      z-index: 5;
+    }
+    .tooltip strong { display: block; font-size: 13px; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="card">
+      <h1>Wealth Provider Account Explorer</h1>
+      <p>Explore which providers Optimisers use for each account type. Bubble size is the provider/account cell count; colour uses the selected metric.</p>
+      <div class="controls">
+        <div>
+          <label for="metric">Colour metric</label>
+          <select id="metric">
+            <option value="pct_25k_plus">% with $25k+ in account type</option>
+            <option value="pct_of_optimisers">% of Optimisers</option>
+            <option value="pct_of_account_holders">% of account holders</option>
+            <option value="very_satisfied_pct">% very satisfied with main provider</option>
+            <option value="add_switch_likely_top2_pct">% likely to add/switch</option>
+          </select>
+        </div>
+        <div>
+          <label for="minN">Minimum cell n</label>
+          <input id="minN" type="number" min="0" max="100" value="10">
+        </div>
+        <div>
+          <label for="providerLimit">Provider rows</label>
+          <input id="providerLimit" type="number" min="5" max="19" value="12">
+        </div>
+      </div>
+      <svg id="chart" viewBox="0 0 1180 760" role="img" aria-label="Provider account bubble matrix"></svg>
+      <p class="note">Base: Optimiser quality-pass respondents, n=289. Caveat: amount is account-type amount among respondents selecting each provider/account combination; balances are not allocated across multiple providers.</p>
+    </section>
+  </main>
+  <div id="tooltip" class="tooltip"></div>
+  <script id="csv-data" type="text/plain">
+provider,account_key,account_type,n,optimiser_base_n,pct_of_optimisers,account_holder_n,pct_of_account_holders,amount_disclosed_n,pct_25k_plus,pct_100k_plus,median_amount_band_code,median_amount_band,very_satisfied_pct,add_switch_likely_top2_pct,provider_total_mentions,small_cell,report_account,account_order,provider_rank
+Robinhood,ira,IRA,58,289,20.07,186,31.18,56,39.29,12.5,3,"$5,000-$24,999",79.31,81.03,252,False,True,0,0
+Robinhood,brokerage,General brokerage,75,289,25.95,175,42.86,74,31.08,10.81,3,"$5,000-$24,999",68.0,74.67,252,False,True,1,0
+Robinhood,hsa,HSA invested,26,289,9.0,112,23.21,26,15.38,7.69,2,"$1,000-$4,999",73.08,92.31,252,False,True,2,0
+Robinhood,education_529,529 education,11,289,3.81,36,30.56,11,36.36,9.09,3,"$5,000-$24,999",45.45,72.73,252,False,True,3,0
+Robinhood,custodial,UGMA/UTMA custodial,2,289,0.69,12,16.67,2,100.0,50.0,4,"$25,000-$99,999",50.0,100.0,252,True,False,4,0
+Robinhood,crypto,Crypto wallet,71,289,24.57,164,43.29,69,18.84,4.35,2,"$1,000-$4,999",70.42,78.87,252,False,True,5,0
+Robinhood,other,Other investment account,9,289,3.11,31,29.03,9,33.33,22.22,2,"$1,000-$4,999",66.67,55.56,252,True,False,6,0
+Fidelity,ira,IRA,57,289,19.72,186,30.65,56,44.64,26.79,3,"$5,000-$24,999",63.16,75.44,188,False,True,0,1
+Fidelity,brokerage,General brokerage,50,289,17.3,175,28.57,48,41.67,27.08,3,"$5,000-$24,999",76.0,80.0,188,False,True,1,1
+Fidelity,hsa,HSA invested,35,289,12.11,112,31.25,35,22.86,5.71,3,"$5,000-$24,999",71.43,74.29,188,False,True,2,1
+Fidelity,education_529,529 education,10,289,3.46,36,27.78,10,50.0,10.0,3,"$5,000-$24,999",90.0,60.0,188,False,True,3,1
+Fidelity,custodial,UGMA/UTMA custodial,1,289,0.35,12,8.33,1,0.0,0.0,3,"$5,000-$24,999",100.0,0.0,188,True,False,4,1
+Fidelity,crypto,Crypto wallet,28,289,9.69,164,17.07,27,11.11,0.0,2,"$1,000-$4,999",71.43,100.0,188,False,True,5,1
+Fidelity,other,Other investment account,7,289,2.42,31,22.58,7,14.29,14.29,2,"$1,000-$4,999",57.14,42.86,188,True,False,6,1
+Charles Schwab,ira,IRA,53,289,18.34,186,28.49,51,52.94,23.53,4,"$25,000-$99,999",71.7,71.7,161,False,True,0,2
+Charles Schwab,brokerage,General brokerage,38,289,13.15,175,21.71,36,50.0,19.44,3,"$5,000-$24,999",73.68,78.95,161,False,True,1,2
+Charles Schwab,hsa,HSA invested,25,289,8.65,112,22.32,25,16.0,4.0,3,"$5,000-$24,999",68.0,96.0,161,False,True,2,2
+Charles Schwab,education_529,529 education,8,289,2.77,36,22.22,8,37.5,0.0,3,"$5,000-$24,999",50.0,62.5,161,True,True,3,2
+Charles Schwab,crypto,Crypto wallet,25,289,8.65,164,15.24,24,25.0,4.17,2,"$1,000-$4,999",72.0,100.0,161,False,True,5,2
+Coinbase,ira,IRA,17,289,5.88,186,9.14,16,50.0,12.5,3,"$5,000-$24,999",64.71,94.12,145,False,True,0,3
+Coinbase,brokerage,General brokerage,18,289,6.23,175,10.29,17,35.29,5.88,3,"$5,000-$24,999",83.33,88.89,145,False,True,1,3
+Coinbase,hsa,HSA invested,13,289,4.5,112,11.61,13,15.38,7.69,3,"$5,000-$24,999",69.23,100.0,145,False,True,2,3
+Coinbase,education_529,529 education,6,289,2.08,36,16.67,6,33.33,16.67,3,"$5,000-$24,999",100.0,83.33,145,True,True,3,3
+Coinbase,crypto,Crypto wallet,81,289,28.03,164,49.39,80,18.75,3.75,3,"$5,000-$24,999",67.9,75.31,145,False,True,5,3
+Vanguard,ira,IRA,41,289,14.19,186,22.04,40,55.0,30.0,4,"$25,000-$99,999",70.73,73.17,136,False,True,0,4
+Vanguard,brokerage,General brokerage,37,289,12.8,175,21.14,35,45.71,22.86,3,"$5,000-$24,999",81.08,72.97,136,False,True,1,4
+Vanguard,hsa,HSA invested,17,289,5.88,112,15.18,17,17.65,5.88,2,"$1,000-$4,999",58.82,100.0,136,False,True,2,4
+Vanguard,education_529,529 education,7,289,2.42,36,19.44,7,85.71,57.14,5,"$100,000 or more",100.0,71.43,136,True,True,3,4
+Vanguard,crypto,Crypto wallet,22,289,7.61,164,13.41,21,28.57,9.52,3,"$5,000-$24,999",68.18,100.0,136,False,True,5,4
+Cash App,ira,IRA,21,289,7.27,186,11.29,20,35.0,5.0,3,"$5,000-$24,999",61.9,85.71,131,False,True,0,5
+Cash App,brokerage,General brokerage,20,289,6.92,175,11.43,18,33.33,0.0,3,"$5,000-$24,999",65.0,95.0,131,False,True,1,5
+Cash App,hsa,HSA invested,15,289,5.19,112,13.39,15,13.33,6.67,3,"$5,000-$24,999",73.33,93.33,131,False,True,2,5
+Cash App,education_529,529 education,4,289,1.38,36,11.11,4,50.0,25.0,3,"$5,000-$24,999",75.0,75.0,131,True,True,3,5
+Cash App,crypto,Crypto wallet,63,289,21.8,164,38.41,61,16.39,8.2,2,"$1,000-$4,999",73.02,76.19,131,False,True,5,5
+JP Morgan Self-Directed,ira,IRA,27,289,9.34,186,14.52,27,51.85,18.52,4,"$25,000-$99,999",59.26,92.59,125,False,True,0,6
+JP Morgan Self-Directed,brokerage,General brokerage,29,289,10.03,175,16.57,28,50.0,10.71,3,"$5,000-$24,999",72.41,79.31,125,False,True,1,6
+JP Morgan Self-Directed,hsa,HSA invested,23,289,7.96,112,20.54,23,17.39,4.35,3,"$5,000-$24,999",69.57,100.0,125,False,True,2,6
+JP Morgan Self-Directed,education_529,529 education,11,289,3.81,36,30.56,11,36.36,27.27,3,"$5,000-$24,999",81.82,72.73,125,False,True,3,6
+JP Morgan Self-Directed,crypto,Crypto wallet,25,289,8.65,164,15.24,25,36.0,4.0,3,"$5,000-$24,999",76.0,92.0,125,False,True,5,6
+SoFi,ira,IRA,27,289,9.34,186,14.52,27,37.04,14.81,3,"$5,000-$24,999",66.67,81.48,115,False,True,0,7
+SoFi,brokerage,General brokerage,28,289,9.69,175,16.0,28,39.29,14.29,3,"$5,000-$24,999",78.57,85.71,115,False,True,1,7
+SoFi,hsa,HSA invested,14,289,4.84,112,12.5,14,28.57,14.29,3,"$5,000-$24,999",64.29,92.86,115,False,True,2,7
+SoFi,education_529,529 education,3,289,1.04,36,8.33,3,33.33,0.0,3,"$5,000-$24,999",66.67,66.67,115,True,True,3,7
+SoFi,crypto,Crypto wallet,34,289,11.76,164,20.73,34,14.71,0.0,2,"$1,000-$4,999",76.47,73.53,115,False,True,5,7
+Webull,ira,IRA,21,289,7.27,186,11.29,21,42.86,14.29,3,"$5,000-$24,999",66.67,80.95,114,False,True,0,8
+Webull,brokerage,General brokerage,29,289,10.03,175,16.57,27,40.74,18.52,3,"$5,000-$24,999",58.62,82.76,114,False,True,1,8
+Webull,hsa,HSA invested,14,289,4.84,112,12.5,14,35.71,14.29,3,"$5,000-$24,999",64.29,92.86,114,False,True,2,8
+Webull,education_529,529 education,4,289,1.38,36,11.11,4,75.0,25.0,4,"$25,000-$99,999",75.0,100.0,114,True,True,3,8
+Webull,crypto,Crypto wallet,37,289,12.8,164,22.56,37,16.22,5.41,2,"$1,000-$4,999",64.86,89.19,114,False,True,5,8
+Fidelity Go,ira,IRA,24,289,8.3,186,12.9,24,45.83,12.5,3,"$5,000-$24,999",62.5,83.33,111,False,True,0,9
+Fidelity Go,brokerage,General brokerage,22,289,7.61,175,12.57,22,45.45,18.18,3,"$5,000-$24,999",72.73,77.27,111,False,True,1,9
+Fidelity Go,hsa,HSA invested,19,289,6.57,112,16.96,19,15.79,0.0,2,"$1,000-$4,999",63.16,89.47,111,False,True,2,9
+Fidelity Go,education_529,529 education,10,289,3.46,36,27.78,10,30.0,0.0,3,"$5,000-$24,999",90.0,80.0,111,False,True,3,9
+Fidelity Go,crypto,Crypto wallet,25,289,8.65,164,15.24,25,20.0,4.0,2,"$1,000-$4,999",68.0,88.0,111,False,True,5,9
+Other,ira,IRA,26,289,9.0,186,13.98,24,58.33,29.17,4,"$25,000-$99,999",69.23,50.0,110,False,True,0,10
+Other,brokerage,General brokerage,19,289,6.57,175,10.86,18,66.67,44.44,4,"$25,000-$99,999",68.42,57.89,110,False,True,1,10
+Other,hsa,HSA invested,20,289,6.92,112,17.86,18,16.67,5.56,2,"$1,000-$4,999",60.0,70.0,110,False,True,2,10
+Other,education_529,529 education,4,289,1.38,36,11.11,4,100.0,50.0,4,"$25,000-$99,999",100.0,75.0,110,True,True,3,10
+Other,crypto,Crypto wallet,27,289,9.34,164,16.46,27,25.93,3.7,2,"$1,000-$4,999",66.67,74.07,110,False,True,5,10
+E*TRADE,ira,IRA,20,289,6.92,186,10.75,20,40.0,20.0,3,"$5,000-$24,999",60.0,80.0,107,False,True,0,11
+E*TRADE,brokerage,General brokerage,29,289,10.03,175,16.57,29,34.48,6.9,3,"$5,000-$24,999",72.41,82.76,107,False,True,1,11
+E*TRADE,hsa,HSA invested,13,289,4.5,112,11.61,13,23.08,15.38,2,"$1,000-$4,999",76.92,100.0,107,False,True,2,11
+E*TRADE,education_529,529 education,4,289,1.38,36,11.11,4,50.0,25.0,3,"$5,000-$24,999",100.0,75.0,107,True,True,3,11
+E*TRADE,crypto,Crypto wallet,30,289,10.38,164,18.29,30,16.67,0.0,2,"$1,000-$4,999",56.67,90.0,107,False,True,5,11
+Acorns,ira,IRA,17,289,5.88,186,9.14,17,35.29,17.65,3,"$5,000-$24,999",76.47,88.24,99,False,True,0,12
+Acorns,brokerage,General brokerage,23,289,7.96,175,13.14,22,40.91,18.18,3,"$5,000-$24,999",78.26,78.26,99,False,True,1,12
+Acorns,hsa,HSA invested,15,289,5.19,112,13.39,15,13.33,6.67,3,"$5,000-$24,999",66.67,80.0,99,False,True,2,12
+Acorns,education_529,529 education,4,289,1.38,36,11.11,4,25.0,0.0,2,"$1,000-$4,999",100.0,75.0,99,True,True,3,12
+Acorns,crypto,Crypto wallet,30,289,10.38,164,18.29,30,16.67,6.67,2,"$1,000-$4,999",76.67,93.33,99,False,True,5,12
+Betterment,ira,IRA,21,289,7.27,186,11.29,21,52.38,23.81,4,"$25,000-$99,999",66.67,85.71,90,False,True,0,13
+Betterment,brokerage,General brokerage,23,289,7.96,175,13.14,22,40.91,9.09,3,"$5,000-$24,999",73.91,91.3,90,False,True,1,13
+Betterment,hsa,HSA invested,16,289,5.54,112,14.29,16,25.0,18.75,2,"$1,000-$4,999",68.75,100.0,90,False,True,2,13
+Betterment,education_529,529 education,2,289,0.69,36,5.56,2,50.0,0.0,3,"$5,000-$24,999",100.0,50.0,90,True,True,3,13
+Betterment,crypto,Crypto wallet,18,289,6.23,164,10.98,18,22.22,0.0,2,"$1,000-$4,999",55.56,100.0,90,False,True,5,13
+Public,ira,IRA,17,289,5.88,186,9.14,17,41.18,23.53,3,"$5,000-$24,999",58.82,88.24,90,False,True,0,14
+Public,brokerage,General brokerage,22,289,7.61,175,12.57,21,38.1,14.29,3,"$5,000-$24,999",72.73,90.91,90,False,True,1,14
+Public,hsa,HSA invested,16,289,5.54,112,14.29,16,18.75,6.25,2,"$1,000-$4,999",68.75,87.5,90,False,True,2,14
+Public,education_529,529 education,3,289,1.04,36,8.33,3,33.33,0.0,3,"$5,000-$24,999",100.0,66.67,90,True,True,3,14
+Public,crypto,Crypto wallet,21,289,7.27,164,12.8,21,28.57,4.76,2,"$1,000-$4,999",76.19,100.0,90,False,True,5,14
+Interactive Brokers,ira,IRA,18,289,6.23,186,9.68,18,44.44,16.67,3,"$5,000-$24,999",72.22,94.44,89,False,True,0,15
+Interactive Brokers,brokerage,General brokerage,17,289,5.88,175,9.71,16,37.5,12.5,3,"$5,000-$24,999",58.82,88.24,89,False,True,1,15
+Interactive Brokers,hsa,HSA invested,16,289,5.54,112,14.29,16,25.0,12.5,2,"$1,000-$4,999",56.25,87.5,89,False,True,2,15
+Interactive Brokers,education_529,529 education,5,289,1.73,36,13.89,5,40.0,20.0,3,"$5,000-$24,999",100.0,80.0,89,True,True,3,15
+Interactive Brokers,crypto,Crypto wallet,22,289,7.61,164,13.41,22,22.73,4.55,3,"$5,000-$24,999",63.64,95.45,89,False,True,5,15
+Stash,ira,IRA,15,289,5.19,186,8.06,15,60.0,20.0,4,"$25,000-$99,999",80.0,93.33,86,False,True,0,16
+Stash,brokerage,General brokerage,19,289,6.57,175,10.86,18,55.56,22.22,4,"$25,000-$99,999",78.95,84.21,86,False,True,1,16
+Stash,hsa,HSA invested,12,289,4.15,112,10.71,12,16.67,8.33,2,"$1,000-$4,999",66.67,91.67,86,False,True,2,16
+Stash,education_529,529 education,6,289,2.08,36,16.67,6,33.33,16.67,3,"$5,000-$24,999",100.0,83.33,86,True,True,3,16
+Stash,crypto,Crypto wallet,25,289,8.65,164,15.24,25,16.0,4.0,2,"$1,000-$4,999",60.0,88.0,86,False,True,5,16
+M1 Finance,ira,IRA,12,289,4.15,186,6.45,12,58.33,25.0,4,"$25,000-$99,999",50.0,83.33,87,False,True,0,17
+M1 Finance,brokerage,General brokerage,15,289,5.19,175,8.57,15,53.33,20.0,4,"$25,000-$99,999",73.33,86.67,87,False,True,1,17
+M1 Finance,hsa,HSA invested,15,289,5.19,112,13.39,15,20.0,13.33,2,"$1,000-$4,999",73.33,93.33,87,False,True,2,17
+M1 Finance,education_529,529 education,8,289,2.77,36,22.22,8,25.0,12.5,3,"$5,000-$24,999",87.5,75.0,87,True,True,3,17
+M1 Finance,crypto,Crypto wallet,24,289,8.3,164,14.63,24,25.0,0.0,2,"$1,000-$4,999",66.67,87.5,87,False,True,5,17
+Wealthfront,ira,IRA,15,289,5.19,186,8.06,15,40.0,20.0,3,"$5,000-$24,999",73.33,86.67,76,False,True,0,18
+Wealthfront,brokerage,General brokerage,14,289,4.84,175,8.0,13,38.46,15.38,3,"$5,000-$24,999",71.43,78.57,76,False,True,1,18
+Wealthfront,hsa,HSA invested,15,289,5.19,112,13.39,15,40.0,20.0,3,"$5,000-$24,999",66.67,80.0,76,False,True,2,18
+Wealthfront,education_529,529 education,7,289,2.42,36,19.44,7,28.57,14.29,3,"$5,000-$24,999",71.43,71.43,76,True,True,3,18
+Wealthfront,crypto,Crypto wallet,17,289,5.88,164,10.37,17,29.41,5.88,3,"$5,000-$24,999",64.71,88.24,76,False,True,5,18
+  </script>
+  <script>
+    const chart = document.getElementById('chart');
+    const tooltip = document.getElementById('tooltip');
+    const metricSelect = document.getElementById('metric');
+    const minNInput = document.getElementById('minN');
+    const providerLimitInput = document.getElementById('providerLimit');
+    const reportAccounts = ['ira', 'brokerage', 'hsa', 'education_529', 'crypto'];
+    const colours = { ink: '#47201c', muted: '#765f56', line: '#d6c8ba', surface2: '#f0ede8' };
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [], value = '', quoted = false;
+      for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        const next = text[i + 1];
+        if (char === '"' && quoted && next === '"') { value += '"'; i += 1; continue; }
+        if (char === '"') { quoted = !quoted; continue; }
+        if (char === ',' && !quoted) { row.push(value); value = ''; continue; }
+        if ((char === '\n' || char === '\r') && !quoted) {
+          if (char === '\r' && next === '\n') i += 1;
+          row.push(value);
+          if (row.some(Boolean)) rows.push(row);
+          row = []; value = '';
+          continue;
+        }
+        value += char;
+      }
+      if (value || row.length) { row.push(value); rows.push(row); }
+      const headers = rows.shift();
+      return rows.map(values => Object.fromEntries(headers.map((header, index) => [header, coerce(values[index])])));
+    }
+
+    function coerce(value) {
+      if (value === 'True') return true;
+      if (value === 'False') return false;
+      if (value !== '' && !Number.isNaN(Number(value))) return Number(value);
+      return value;
+    }
+
+    const allRows = parseCsv(document.getElementById('csv-data').textContent.trim());
+    const rows = allRows.filter(row => row.report_account && reportAccounts.includes(row.account_key));
+    const providers = [...new Map(rows.sort((a, b) => a.provider_rank - b.provider_rank).map(row => [row.provider, row.provider])).values()];
+    const accounts = [...new Map(rows.sort((a, b) => a.account_order - b.account_order).map(row => [row.account_key, { key: row.account_key, label: row.account_type }])).values()];
+
+    function colourScale(value, maxValue) {
+      if (value == null || Number.isNaN(value)) return colours.surface2;
+      const t = Math.max(0, Math.min(1, value / maxValue));
+      const from = [255, 245, 163];
+      const to = [153, 232, 102];
+      const rgb = from.map((c, i) => Math.round(c + (to[i] - c) * t));
+      return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+    }
+
+    function metricMax(metric) {
+      if (metric === 'pct_of_optimisers') return 32;
+      if (metric === 'pct_of_account_holders') return 55;
+      return 100;
+    }
+
+    function fmt(value, suffix = '%') {
+      if (value == null || value === '' || Number.isNaN(value)) return '-';
+      return `${Math.round(value)}${suffix}`;
+    }
+
+    function draw() {
+      chart.innerHTML = '';
+      const metric = metricSelect.value;
+      const minN = Number(minNInput.value || 0);
+      const limit = Number(providerLimitInput.value || 12);
+      const visibleProviders = providers.slice(0, limit);
+      const left = 220, top = 92, colW = 175, rowH = 52;
+      const maxN = Math.max(...rows.map(row => row.n || 0));
+      chart.setAttribute('viewBox', `0 0 1180 ${Math.max(760, top + visibleProviders.length * rowH + 80)}`);
+
+      accounts.forEach((account, j) => {
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', left + j * colW);
+        text.setAttribute('y', 44);
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('class', 'axis-label');
+        text.textContent = account.label;
+        chart.appendChild(text);
+      });
+
+      visibleProviders.forEach((provider, i) => {
+        const y = top + i * rowH;
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', 24);
+        label.setAttribute('y', y + 5);
+        label.setAttribute('class', 'provider-label');
+        label.textContent = provider.length > 26 ? `${provider.slice(0, 25)}...` : provider;
+        chart.appendChild(label);
+
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', left - 70);
+        line.setAttribute('x2', left + accounts.length * colW - 85);
+        line.setAttribute('y1', y + 24);
+        line.setAttribute('y2', y + 24);
+        line.setAttribute('stroke', colours.line);
+        line.setAttribute('stroke-opacity', '0.45');
+        chart.appendChild(line);
+
+        accounts.forEach((account, j) => {
+          const row = rows.find(item => item.provider === provider && item.account_key === account.key);
+          if (!row) return;
+          const x = left + j * colW;
+          const radius = 6 + 26 * Math.sqrt(row.n / maxN);
+          const visible = row.n >= minN;
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('cx', x);
+          circle.setAttribute('cy', y);
+          circle.setAttribute('r', radius);
+          circle.setAttribute('fill', colourScale(row[metric], metricMax(metric)));
+          circle.setAttribute('stroke', colours.line);
+          circle.setAttribute('opacity', visible ? '0.92' : '0.22');
+          circle.addEventListener('mousemove', event => showTooltip(event, row));
+          circle.addEventListener('mouseleave', hideTooltip);
+          chart.appendChild(circle);
+          if (visible && radius > 14) {
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', x);
+            text.setAttribute('y', y + 4);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('class', 'bubble-label');
+            text.textContent = row.n;
+            chart.appendChild(text);
+          }
+        });
+      });
+    }
+
+    function showTooltip(event, row) {
+      tooltip.style.display = 'block';
+      tooltip.style.left = `${event.clientX + 14}px`;
+      tooltip.style.top = `${event.clientY + 14}px`;
+      tooltip.innerHTML = `
+        <strong>${row.provider} / ${row.account_type}</strong>
+        n: ${row.n} of ${row.optimiser_base_n} Optimisers<br>
+        % of Optimisers: ${fmt(row.pct_of_optimisers)}<br>
+        % of account holders: ${fmt(row.pct_of_account_holders)}<br>
+        % with $25k+: ${fmt(row.pct_25k_plus)}<br>
+        Median amount band: ${row.median_amount_band || '-'}<br>
+        Very satisfied: ${fmt(row.very_satisfied_pct)}<br>
+        Likely to add/switch: ${fmt(row.add_switch_likely_top2_pct)}
+      `;
+    }
+
+    function hideTooltip() { tooltip.style.display = 'none'; }
+    metricSelect.addEventListener('change', draw);
+    minNInput.addEventListener('input', draw);
+    providerLimitInput.addEventListener('input', draw);
+    draw();
+  </script>
+</body>
+</html>
